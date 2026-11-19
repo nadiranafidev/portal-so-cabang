@@ -78,30 +78,24 @@ function openExternal(url) {
 }
 
 // ─────────────────────────────────────────────
-// Session & user-agent
+// Session
 // ─────────────────────────────────────────────
 
 /**
- * Siapkan session persisten dan terapkan user-agent Chrome murni.
+ * Siapkan session persisten.
  *
- * PENTING — Google OAuth:
- * Google memblokir OAuth jika user-agent mengandung string yang
- * mengidentifikasi aplikasi sebagai embedded webview (misalnya "Electron",
- * nama app custom, atau "wv").
- * Solusi: gunakan UA Chrome standar TANPA tambahan nama aplikasi.
- * Electron 31 menggunakan Chromium 124; kita sesuaikan versi Chrome di UA.
+ * DIAGNOSTIK OPSI A:
+ * User-Agent dibiarkan menggunakan nilai bawaan Electron (tidak dimanipulasi).
+ * UA bawaan Electron mengandung token "Electron/<ver>" di akhir string.
+ * Penelitian empiris (2025) menunjukkan UA yang persis menyerupai Chrome murni
+ * justru diblokir Google, sedangkan UA bawaan Electron lolos.
+ * Referensi: https://github.com/stablyai/orca/issues/11518
  */
 function getAppSession() {
   const appSession = session.fromPartition(PARTITION);
 
-  // UA Chrome standar Windows — tidak mengandung "Electron" atau nama app.
-  // Ini adalah UA yang dikirimkan browser Chrome biasa pada Windows 10/11.
-  const chromeUA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
-    'AppleWebKit/537.36 (KHTML, like Gecko) ' +
-    'Chrome/124.0.0.0 Safari/537.36';
-
-  appSession.setUserAgent(chromeUA);
+  // Tidak memanggil appSession.setUserAgent() —
+  // biarkan Electron menggunakan UA bawaannya secara utuh.
 
   // Izinkan permission yang wajar; tolak yang berbahaya.
   appSession.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -191,6 +185,11 @@ function attachWebView(view) {
   }
 
   updateBounds();
+
+  // Hapus listener lama sebelum menambah yang baru agar tidak menumpuk
+  // (mencegah MaxListenersExceededWarning saat did-finish-load dipanggil
+  // berulang kali pada navigasi halaman berikutnya).
+  mainWindow.removeAllListeners('resize');
   mainWindow.on('resize', updateBounds);
 }
 
