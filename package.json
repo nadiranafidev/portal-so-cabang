@@ -1,0 +1,78 @@
+{
+  "name": "portal-so-cabang",
+  "productName": "Portal SO Cabang",
+  "version": "1.0.0",
+  "description": "Aplikasi Desktop Portal SO Cabang",
+  "main": "main.js",
+  "author": {
+    "name": "nadiranafidev",
+    "email": "nadiranafidev@gmail.com"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win --x64",
+    "build:publish": "electron-builder build --win --x64 --publish always",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.4"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.putrasejati.portalsocabang",
+    "productName": "Portal SO Cabang",
+    "executableName": "PortalSOCabang",
+    "copyright": "Copyright © 2024 nadiranafidev",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.js",
+      "updater.js",
+      "loading.html",
+      "error.html",
+      "package.json",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Portal SO Cabang",
+      "artifactName": "Portal-SO-Cabang-Setup.exe",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "nadiranafidev",
+      "repo": "portal-so-cabang"
+    }
+  },
+  "allowScripts": {
+    "electron": true
+  }
+}

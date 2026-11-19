@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal SO Cabang - Koneksi Bermasalah</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #ffffff;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .error-container {
+      text-align: center;
+      max-width: 480px;
+      padding: 0 24px;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .error-icon {
+      width: 80px;
+      height: 80px;
+      background: rgba(233, 69, 96, 0.15);
+      border: 2px solid rgba(233, 69, 96, 0.4);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+    }
+
+    .error-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: #e94560;
+    }
+
+    .error-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .error-message {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+
+    .error-url {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.35);
+      margin-bottom: 36px;
+      word-break: break-all;
+    }
+
+    .error-url span {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .buttons {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 11px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #e94560, #c73652);
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(233, 69, 96, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(233, 69, 96, 0.45);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .tips {
+      margin-top: 44px;
+      padding: 18px 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      text-align: left;
+    }
+
+    .tips-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .tips-list {
+      list-style: none;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.8;
+    }
+
+    .tips-list li::before {
+      content: '→ ';
+      color: #e94560;
+    }
+
+    .version {
+      position: fixed;
+      bottom: 18px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-icon">
+      <!-- Ikon WiFi off / koneksi bermasalah -->
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <line x1="8" y1="8" x2="56" y2="56" stroke="#e94560" stroke-width="5" stroke-linecap="round"/>
+        <path d="M20 44 C23 40, 28 37, 32 37 C36 37, 41 40, 44 44" stroke="#e94560" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M12 36 C17 29, 24 24, 32 24" stroke="#e94560" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"/>
+        <circle cx="32" cy="52" r="4" fill="#e94560"/>
+      </svg>
+    </div>
+
+    <div class="error-title">Tidak Dapat Terhubung</div>
+    <div class="error-message">
+      Aplikasi tidak dapat memuat halaman. Pastikan koneksi internet Anda aktif dan server website berjalan dengan normal.
+    </div>
+    <div class="error-url" id="errorUrl"></div>
+
+    <div class="buttons">
+      <button class="btn btn-primary" onclick="retryLoad()">
+        🔄 Coba Lagi
+      </button>
+      <button class="btn btn-secondary" onclick="closeApp()">
+        Tutup Aplikasi
+      </button>
+    </div>
+
+    <div class="tips">
+      <div class="tips-title">Yang bisa dicoba</div>
+      <ul class="tips-list">
+        <li>Periksa koneksi internet Anda</li>
+        <li>Pastikan WiFi atau LAN aktif dan terhubung</li>
+        <li>Hubungi administrator jika masalah berlanjut</li>
+        <li>Tekan F5 untuk memuat ulang setelah koneksi pulih</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="version" id="version">v1.0.0</div>
+
+  <script>
+    // Ambil URL dan versi dari query param
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlParam = params.get('url');
+      const ver = params.get('v');
+      if (urlParam) {
+        document.getElementById('errorUrl').innerHTML =
+          '<span>URL:</span> ' + decodeURIComponent(urlParam);
+      }
+      if (ver) {
+        document.getElementById('version').textContent = 'v' + ver;
+      }
+    } catch (e) {}
+
+    function retryLoad() {
+      window.location.reload();
+    }
+
+    function closeApp() {
+      window.close();
+    }
+
+    // Tombol keyboard
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+        e.preventDefault();
+        retryLoad();
+      }
+    });
+  </script>
+</body>
+</html>

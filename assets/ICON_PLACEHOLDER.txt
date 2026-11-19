@@ -1,0 +1,16 @@
+Letakkan file icon.ico di folder ini.
+
+Rekomendasi:
+- Format: ICO
+- Ukuran: 256x256 piksel (multi-size ICO: 16, 32, 48, 128, 256)
+- Nama file: icon.ico
+
+Ikon ini digunakan untuk:
+- Ikon aplikasi di taskbar dan desktop
+- Ikon installer NSIS
+- Ikon di title bar window
+
+Gunakan tool seperti:
+- https://www.icoconverter.com/
+- https://convertio.co/png-ico/
+untuk mengubah PNG/SVG ke format ICO.
