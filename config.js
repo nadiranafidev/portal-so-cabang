@@ -20,14 +20,33 @@ const GITHUB_CONFIG_URL =
 // Timeout pengambilan config dari GitHub (ms)
 const FETCH_TIMEOUT = 8000;
 
-// Daftar domain yang diizinkan
+// Daftar domain yang diizinkan untuk navigasi di dalam aplikasi.
+//
+// Alur OAuth lengkap yang ditemukan dari log:
+//   portalsocabang5.zite.so/auth/login
+//     → server.zite.com/public/zite/auth/google/authorize   (inisiasi OAuth)
+//     → accounts.google.com/v3/signin/...                    (halaman login Google)
+//     → server.fillout.com/public/zite/auth/google/callback  (callback proxy)
+//     → portalsocabang5.zite.so/api/auth/callback/google     (kembali ke app)
+//
+// Semua domain dalam alur ini harus diizinkan agar sesi login terbentuk.
 const ALLOWED_DOMAINS = [
+  // Website utama
   'portalsocabang5.zite.so',
   'portalsocabang.zite.so',
   'zite.so',
+  // Proxy OAuth platform zite (inisiasi)
+  'server.zite.com',
+  'zite.com',
+  // Proxy OAuth Fillout (callback dari Google)
+  'server.fillout.com',
+  'fillout.com',
+  // Google Sign-In
   'accounts.google.com',
   'oauth2.googleapis.com',
-  'googleapis.com'
+  'googleapis.com',
+  // Google safety / additional redirects
+  'google.com'
 ];
 
 // Path file cache lokal

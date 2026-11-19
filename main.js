@@ -22,39 +22,40 @@ const { initUpdater, checkForUpdates } = require('./updater');
 // ─────────────────────────────────────────────
 
 const APP_VERSION = app.getVersion();
+const PARTITION    = 'persist:portalsocabang';
 
-// Nonaktifkan hardware acceleration jika ada masalah render (opsional, aktifkan jika perlu)
-// app.disableHardwareAcceleration();
+// Timeout maksimal menunggu website (ms). Jika lewat, window tetap ditampilkan.
+const LOAD_SHOW_TIMEOUT = 15000;
 
 // ─────────────────────────────────────────────
 // State global
 // ─────────────────────────────────────────────
 
-let mainWindow = null;
-let webView = null;
-let loadingWindow = null;
-let currentUrl = null;
+let mainWindow   = null;
+let webView      = null;
+let currentUrl   = null;
 let isFullscreen = false;
+let windowShown  = false; // flag agar show() hanya dipanggil sekali
 
 // ─────────────────────────────────────────────
-// Utilitas
+// Utilitas navigasi
 // ─────────────────────────────────────────────
 
 /**
- * Periksa apakah URL termasuk domain yang diizinkan untuk navigasi internal.
- * @param {string} url
- * @returns {boolean}
+ * Domain yang boleh dibuka di dalam aplikasi (navigasi internal).
+ * Ini termasuk domain OAuth Google agar popup / redirect bisa berjalan.
  */
 function isAllowedNavigation(url) {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
-    // Izinkan http hanya untuk localhost (development)
-    if (parsed.protocol === 'file:') return false;
+
+    if (parsed.protocol === 'file:')  return false;
     if (parsed.protocol === 'about:') return true;
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+
     return ALLOWED_DOMAINS.some(
-      (domain) => hostname === domain || hostname.endsWith('.' + domain)
+      (d) => hostname === d || hostname.endsWith('.' + d)
     );
   } catch {
     return false;
@@ -62,8 +63,8 @@ function isAllowedNavigation(url) {
 }
 
 /**
- * Buka URL di browser default sistem jika bukan domain yang diizinkan.
- * @param {string} url
+ * Buka URL di browser sistem — hanya untuk URL eksternal yang benar-benar
+ * tidak perlu dikembalikan ke aplikasi.
  */
 function openExternal(url) {
   try {
@@ -77,35 +78,41 @@ function openExternal(url) {
 }
 
 // ─────────────────────────────────────────────
-// Loading Window
+// Session & user-agent
 // ─────────────────────────────────────────────
 
-function createLoadingWindow() {
-  loadingWindow = new BrowserWindow({
-    width: 420,
-    height: 300,
-    frame: false,
-    transparent: false,
-    resizable: false,
-    skipTaskbar: false,
-    center: true,
-    show: false,
-    backgroundColor: '#1a1a2e',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: true
-    },
-    icon: path.join(__dirname, 'assets', 'icon.ico')
+/**
+ * Siapkan session persisten dan terapkan user-agent Chrome murni.
+ *
+ * PENTING — Google OAuth:
+ * Google memblokir OAuth jika user-agent mengandung string yang
+ * mengidentifikasi aplikasi sebagai embedded webview (misalnya "Electron",
+ * nama app custom, atau "wv").
+ * Solusi: gunakan UA Chrome standar TANPA tambahan nama aplikasi.
+ * Electron 31 menggunakan Chromium 124; kita sesuaikan versi Chrome di UA.
+ */
+function getAppSession() {
+  const appSession = session.fromPartition(PARTITION);
+
+  // UA Chrome standar Windows — tidak mengandung "Electron" atau nama app.
+  // Ini adalah UA yang dikirimkan browser Chrome biasa pada Windows 10/11.
+  const chromeUA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
+    'AppleWebKit/537.36 (KHTML, like Gecko) ' +
+    'Chrome/124.0.0.0 Safari/537.36';
+
+  appSession.setUserAgent(chromeUA);
+
+  // Izinkan permission yang wajar; tolak yang berbahaya.
+  appSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    const allowed = ['notifications', 'clipboard-read', 'clipboard-sanitized-write'];
+    callback(allowed.includes(permission));
   });
 
-  loadingWindow.loadFile('loading.html', {
-    query: { v: APP_VERSION }
-  });
+  // Jangan blokir koneksi ke domain manapun — biarkan webSecurity yang menjaga.
+  // (Tidak diperlukan network interception di sini.)
 
-  loadingWindow.once('ready-to-show', () => {
-    loadingWindow.show();
-  });
+  return appSession;
 }
 
 // ─────────────────────────────────────────────
@@ -118,188 +125,216 @@ function createMainWindow() {
     height: 768,
     minWidth: 800,
     minHeight: 600,
-    show: false,
+    show: false,                  // ditampilkan setelah loading selesai
     title: 'Portal SO Cabang',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#0f1117',   // sama dengan warna loading screen
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      experimentalFeatures: false,
       preload: path.join(__dirname, 'preload.js'),
-      // Gunakan session persisten agar login tersimpan
-      partition: 'persist:portalsocabang'
+      partition: PARTITION
     },
     icon: path.join(__dirname, 'assets', 'icon.ico')
   });
 
-  // Hapus menu bar bawaan Electron
   mainWindow.setMenuBarVisibility(false);
   Menu.setApplicationMenu(null);
 
-  // Muat halaman loading sementara
-  mainWindow.loadFile('loading.html', {
-    query: { v: APP_VERSION }
-  });
+  // Muat loading screen di window utama (tidak ada window loading terpisah)
+  mainWindow.loadFile('loading.html', { query: { v: APP_VERSION } });
 
-  // ── Event: window siap ditampilkan ──
   mainWindow.once('ready-to-show', () => {
-    // Jangan tampilkan dulu, tunggu website selesai dimuat
+    // Tampilkan window dengan loading screen segera
+    mainWindow.show();
+    windowShown = true;
   });
 
-  // ── Event: window ditutup ──
   mainWindow.on('closed', () => {
     mainWindow = null;
-    webView = null;
+    webView    = null;
   });
 
   return mainWindow;
 }
 
 // ─────────────────────────────────────────────
-// WebContentsView / BrowserView untuk website
+// BrowserView — memuat website
 // ─────────────────────────────────────────────
 
 /**
- * Buat dan pasang BrowserView untuk memuat website.
- * BrowserView memastikan website tidak mendapat akses Node.js.
- * @param {string} url
+ * Tampilkan main window (panggil sekali saja).
+ * Menutup loading screen dengan menswap BrowserView ke depan.
  */
-function loadWebsite(url) {
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!windowShown) {
+    mainWindow.show();
+    windowShown = true;
+  }
+}
+
+/**
+ * Pasang BrowserView (konten website) dan tampilkan window utama.
+ * Loading screen langsung tertimpa oleh BrowserView begitu siap.
+ */
+function attachWebView(view) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  mainWindow.setBrowserView(view);
+
+  function updateBounds() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const [w, h] = mainWindow.getContentSize();
+    view.setBounds({ x: 0, y: 0, width: w, height: h });
+  }
+
+  updateBounds();
+  mainWindow.on('resize', updateBounds);
+}
+
+/**
+ * Buat BrowserView untuk memuat website dengan session persisten.
+ * BrowserView berjalan di proses renderer terpisah sehingga website
+ * tidak mendapat akses Node.js sama sekali.
+ *
+ * @param {string} url
+ * @param {Electron.Session} appSession
+ */
+function loadWebsite(url, appSession) {
   if (!mainWindow) return;
 
-  // Gunakan session persisten yang sama
-  const persistSession = session.fromPartition('persist:portalsocabang');
-
-  // Konfigurasi permission handler
-  persistSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['notifications', 'clipboard-read'];
-    callback(allowedPermissions.includes(permission));
-  });
-
-  // Buat BrowserView
   const view = new BrowserView({
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      session: persistSession,
-      preload: path.join(__dirname, 'preload.js')
+      session: appSession
+      // Tidak menyertakan preload di sini karena preload untuk website
+      // dapat mengganggu framework JS di dalam website.
     }
   });
 
-  mainWindow.setBrowserView(view);
   webView = view;
 
-  // Sesuaikan bounds BrowserView dengan ukuran window
-  function updateViewBounds() {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    const [width, height] = mainWindow.getContentSize();
-    view.setBounds({ x: 0, y: 0, width, height });
-  }
+  // ── Navigasi handler ─────────────────────────────────────────────────
 
-  updateViewBounds();
-  mainWindow.on('resize', updateViewBounds);
-
-  // ── Navigasi handler ──
   view.webContents.on('will-navigate', (event, navUrl) => {
     if (!isAllowedNavigation(navUrl)) {
       event.preventDefault();
+      console.log('[Main] Blokir navigasi eksternal:', navUrl);
       openExternal(navUrl);
-      console.log('[Main] Navigasi eksternal dibuka di browser:', navUrl);
     }
+    // Izinkan semua navigasi ke domain yang disetujui — termasuk
+    // callback OAuth yang kembali ke portalsocabang5.zite.so dengan
+    // query string ?code=... maupun redirect ke accounts.google.com.
   });
 
-  view.webContents.setWindowOpenHandler(({ url: newUrl }) => {
+  /**
+   * setWindowOpenHandler menangani window.open() dari dalam website.
+   *
+   * Untuk Google OAuth:
+   * - Jika website menggunakan popup (window.open ke accounts.google.com),
+   *   kita buka sebagai BrowserWindow baru yang berbagi session yang sama.
+   * - Pastikan popup dapat menulis cookies ke session persisten yang sama
+   *   sehingga setelah OAuth selesai, website utama bisa membaca cookie login.
+   *
+   * CATATAN: Google OAuth popup harus menggunakan session yang sama agar
+   * cookies yang diterima setelah login tersedia untuk website utama.
+   */
+  view.webContents.setWindowOpenHandler(({ url: newUrl, frameName }) => {
+    console.log('[Main] window.open dipanggil:', newUrl);
+
     if (isAllowedNavigation(newUrl)) {
-      // Izinkan popup untuk OAuth
+      // Buka sebagai BrowserWindow baru dengan session persisten yang SAMA.
+      // Gunakan 'default-frame' atau frameName agar bisa direferensikan.
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
-          width: 500,
-          height: 650,
+          width: 520,
+          height: 680,
+          minWidth: 400,
+          minHeight: 500,
+          title: 'Login – Portal SO Cabang',
+          autoHideMenuBar: true,
+          backgroundColor: '#ffffff',
+          icon: path.join(__dirname, 'assets', 'icon.ico'),
           webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             webSecurity: true,
-            session: persistSession
+            // ── Kunci: session yang sama ──
+            partition: PARTITION
           }
         }
       };
     }
+
+    // URL di luar domain yang diizinkan → buka di browser sistem
     openExternal(newUrl);
     return { action: 'deny' };
   });
 
-  // ── Loading events ──
+  // ── Loading events ─────────────────────────────────────────────────
+
   view.webContents.on('did-start-loading', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setTitle('Memuat... – Portal SO Cabang');
+      mainWindow.setTitle('Memuat… – Portal SO Cabang');
     }
   });
 
   view.webContents.on('did-finish-load', () => {
-    console.log('[Main] Halaman selesai dimuat:', view.webContents.getURL());
+    const loadedUrl = view.webContents.getURL();
+    console.log('[Main] Halaman dimuat:', loadedUrl);
 
     if (mainWindow && !mainWindow.isDestroyed()) {
-      const pageTitle = view.webContents.getTitle();
-      mainWindow.setTitle(
-        pageTitle ? `${pageTitle} – Portal SO Cabang` : 'Portal SO Cabang'
-      );
-
-      // Tampilkan main window dan tutup loading window
-      if (!mainWindow.isVisible()) {
-        mainWindow.show();
-        if (loadingWindow && !loadingWindow.isDestroyed()) {
-          setTimeout(() => {
-            if (loadingWindow && !loadingWindow.isDestroyed()) {
-              loadingWindow.close();
-              loadingWindow = null;
-            }
-          }, 400);
-        }
-      }
+      const title = view.webContents.getTitle();
+      mainWindow.setTitle(title ? `${title} – Portal SO Cabang` : 'Portal SO Cabang');
     }
+
+    // Pasang BrowserView dan tampilkan window (menggantikan loading screen)
+    attachWebView(view);
+    showMainWindow();
   });
 
-  view.webContents.on('page-title-updated', (event, title) => {
+  view.webContents.on('page-title-updated', (_event, title) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setTitle(title ? `${title} – Portal SO Cabang` : 'Portal SO Cabang');
     }
   });
 
-  // ── Error handler ──
-  view.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    // Abaikan error navigasi yang dibatalkan (misalnya redirect)
-    if (errorCode === -3) return;
+  // ── Error handler ─────────────────────────────────────────────────
 
-    console.error(`[Main] Gagal memuat: ${errorDescription} (${errorCode}) | URL: ${validatedURL}`);
+  view.webContents.on(
+    'did-fail-load',
+    (event, errorCode, errorDescription, validatedURL) => {
+      // -3 = ERR_ABORTED — terjadi saat redirect, bukan error nyata
+      if (errorCode === -3) return;
 
-    // Tampilkan halaman error
-    const encodedUrl = encodeURIComponent(validatedURL || url);
-    mainWindow.loadFile('error.html', {
-      query: { url: encodedUrl, v: APP_VERSION }
-    });
+      console.error(
+        `[Main] Gagal memuat: ${errorDescription} (${errorCode}) | ${validatedURL}`
+      );
 
-    // Pastikan main window ditampilkan
-    if (!mainWindow.isVisible()) {
-      mainWindow.show();
-      if (loadingWindow && !loadingWindow.isDestroyed()) {
-        loadingWindow.close();
-        loadingWindow = null;
-      }
+      // Lepaskan BrowserView agar halaman error bisa dimuat di mainWindow
+      mainWindow.setBrowserView(null);
+
+      const encodedUrl = encodeURIComponent(validatedURL || url);
+      mainWindow.loadFile('error.html', {
+        query: { url: encodedUrl, v: APP_VERSION }
+      });
+
+      showMainWindow();
     }
-  });
+  );
 
-  // ── Muat URL website ──
+  // ── Muat URL ─────────────────────────────────────────────────────
+
+  // UA sudah diset di level session (getAppSession()).
+  // Tidak perlu set UA di sini lagi — konsistensi terjaga di seluruh request.
   console.log('[Main] Memuat URL:', url);
-  view.webContents.loadURL(url, {
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 PortalSOCabang/' +
-      APP_VERSION
-  });
+  view.webContents.loadURL(url);
 }
 
 // ─────────────────────────────────────────────
@@ -307,7 +342,7 @@ function loadWebsite(url) {
 // ─────────────────────────────────────────────
 
 function registerShortcuts() {
-  // F5 - Refresh
+  // F5 — Refresh
   globalShortcut.register('F5', () => {
     if (webView && !webView.webContents.isDestroyed()) {
       webView.webContents.reload();
@@ -316,7 +351,7 @@ function registerShortcuts() {
     }
   });
 
-  // Ctrl+R - Refresh
+  // Ctrl+R — Refresh
   globalShortcut.register('CommandOrControl+R', () => {
     if (webView && !webView.webContents.isDestroyed()) {
       webView.webContents.reload();
@@ -325,14 +360,14 @@ function registerShortcuts() {
     }
   });
 
-  // F11 - Toggle Fullscreen
+  // F11 — Toggle Fullscreen
   globalShortcut.register('F11', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     isFullscreen = !isFullscreen;
     mainWindow.setFullScreen(isFullscreen);
   });
 
-  // Escape - Keluar dari fullscreen
+  // Escape — Keluar fullscreen
   globalShortcut.register('Escape', () => {
     if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen()) {
       isFullscreen = false;
@@ -340,13 +375,14 @@ function registerShortcuts() {
     }
   });
 
-  // F12 - DevTools (hanya mode development)
+  // F12 — DevTools (hanya mode dev)
   if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
     globalShortcut.register('F12', () => {
       if (webView && !webView.webContents.isDestroyed()) {
         webView.webContents.toggleDevTools();
       }
     });
+    console.log('[Main] DevTools (F12) aktif — mode development.');
   }
 
   console.log('[Main] Shortcut keyboard terdaftar.');
@@ -359,65 +395,58 @@ function registerShortcuts() {
 app.whenReady().then(async () => {
   console.log('[Main] Aplikasi dimulai. Versi:', APP_VERSION);
 
-  // Tampilkan loading window
-  createLoadingWindow();
+  // Siapkan session & user-agent
+  const appSession = getAppSession();
 
-  // Buat main window
+  // Buat window (menampilkan loading screen di dalamnya)
   createMainWindow();
+
+  // Fallback: jika website tidak kunjung load dalam LOAD_SHOW_TIMEOUT,
+  // pastikan window tetap ditampilkan agar aplikasi tidak freeze.
+  setTimeout(() => {
+    if (!windowShown) {
+      console.warn('[Main] Timeout loading — paksa tampilkan window.');
+      showMainWindow();
+    }
+  }, LOAD_SHOW_TIMEOUT);
 
   // Ambil URL website (GitHub → cache → default)
   currentUrl = await getWebsiteUrl();
-  console.log('[Main] URL website yang akan dimuat:', currentUrl);
+  console.log('[Main] URL website:', currentUrl);
 
   // Muat website
-  loadWebsite(currentUrl);
+  loadWebsite(currentUrl, appSession);
 
-  // Daftarkan shortcut keyboard
+  // Daftarkan shortcuts
   registerShortcuts();
 
-  // Inisialisasi updater
+  // Inisialisasi updater (hanya production)
   initUpdater(mainWindow);
 
-  // Periksa update setelah 5 detik agar tidak mengganggu startup
   setTimeout(() => {
-    // Hanya periksa update jika bukan mode development
     if (process.env.NODE_ENV !== 'development' && !process.argv.includes('--dev')) {
       checkForUpdates();
     }
   }, 5000);
 });
 
-// Tutup aplikasi saat semua window ditutup (kecuali macOS)
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createMainWindow();
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
 });
 
-// Bersihkan shortcut saat keluar
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  console.log('[Main] Aplikasi ditutup. Shortcut dibersihkan.');
+  console.log('[Main] Shortcut dibersihkan.');
 });
 
 // ─────────────────────────────────────────────
 // IPC handlers
 // ─────────────────────────────────────────────
 
-ipcMain.on('app-ready', () => {
-  console.log('[Main] IPC: app-ready diterima');
-});
-
-ipcMain.on('page-loaded', () => {
-  console.log('[Main] IPC: page-loaded diterima');
-});
-
-ipcMain.on('page-error', (event, errorInfo) => {
-  console.error('[Main] IPC: page-error diterima:', errorInfo);
-});
+ipcMain.on('app-ready',   ()           => console.log('[Main] IPC: app-ready'));
+ipcMain.on('page-loaded', ()           => console.log('[Main] IPC: page-loaded'));
+ipcMain.on('page-error',  (_, info)    => console.error('[Main] IPC: page-error', info));

@@ -3,137 +3,136 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portal SO Cabang - Memuat...</title>
+  <title>Portal SO Cabang</title>
   <style>
+    :root {
+      --bg: #0f1117;
+      --accent: #3b82f6;
+      --accent-dim: rgba(59, 130, 246, 0.15);
+      --text: #f1f5f9;
+      --text-muted: rgba(241, 245, 249, 0.4);
+      --text-sub: rgba(241, 245, 249, 0.6);
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
-      color: #ffffff;
+      color: var(--text);
       overflow: hidden;
       user-select: none;
+      -webkit-app-region: drag;
     }
 
-    .logo-container {
-      margin-bottom: 40px;
-      animation: fadeInDown 0.8s ease-out;
-    }
-
-    .logo-icon {
-      width: 90px;
-      height: 90px;
-      background: linear-gradient(135deg, #e94560, #0f3460);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 20px;
-      box-shadow: 0 8px 32px rgba(233, 69, 96, 0.3);
-    }
-
-    .logo-icon svg {
-      width: 50px;
-      height: 50px;
-      fill: #ffffff;
-    }
-
-    .app-name {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-align: center;
-      color: #ffffff;
-    }
-
-    .app-subtitle {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.5);
-      text-align: center;
-      margin-top: 6px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-
-    .loading-container {
+    /* ── Wrapper utama ── */
+    .wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
-      animation: fadeIn 1s ease-out 0.3s both;
+      gap: 0;
+      opacity: 0;
+      animation: fadeUp 0.5s ease-out 0.1s forwards;
     }
 
-    .spinner {
-      width: 44px;
-      height: 44px;
-      border: 3px solid rgba(255, 255, 255, 0.1);
-      border-top: 3px solid #e94560;
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
+    /* ── Ikon ── */
+    .icon-wrap {
+      width: 72px;
+      height: 72px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+      box-shadow: 0 0 32px rgba(59, 130, 246, 0.12);
+    }
+
+    .icon-wrap svg {
+      width: 36px;
+      height: 36px;
+    }
+
+    /* ── Teks ── */
+    .app-name {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--text);
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .app-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 44px;
+    }
+
+    /* ── Progress bar indeterminate ── */
+    .bar-track {
+      width: 180px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 2px;
+      overflow: hidden;
       margin-bottom: 20px;
     }
 
-    .loading-text {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.6);
-      letter-spacing: 1px;
-    }
-
-    .dots {
-      display: inline-block;
-    }
-
-    .dots::after {
-      content: '';
-      animation: dots 1.5s steps(4, end) infinite;
-    }
-
-    .progress-bar-container {
-      width: 220px;
-      height: 3px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      margin-top: 24px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
+    .bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #e94560, #0f3460);
-      border-radius: 3px;
-      animation: progress 2.5s ease-in-out infinite;
+      width: 45%;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: slide 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
+    /* ── Status teks ── */
+    .status {
+      font-size: 12px;
+      color: var(--text-sub);
+      letter-spacing: 0.03em;
+      min-height: 16px;
+      text-align: center;
+    }
+
+    /* ── Versi ── */
     .version {
       position: fixed;
-      bottom: 18px;
+      bottom: 20px;
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.25);
-      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.18);
+      letter-spacing: 0.05em;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    /* ── Fade-out saat transisi ke website ── */
+    body.fade-out {
+      animation: fadeOut 0.3s ease-out forwards;
     }
 
-    @keyframes progress {
-      0%   { width: 0%; margin-left: 0; }
-      50%  { width: 60%; margin-left: 20%; }
-      100% { width: 0%; margin-left: 100%; }
-    }
-
-    @keyframes fadeInDown {
+    /* ── Keyframes ── */
+    @keyframes fadeUp {
       from {
         opacity: 0;
-        transform: translateY(-24px);
+        transform: translateY(10px);
       }
       to {
         opacity: 1;
@@ -141,54 +140,79 @@
       }
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
+    @keyframes slide {
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(280%); }
     }
 
-    @keyframes dots {
-      0%  { content: ''; }
-      25% { content: '.'; }
-      50% { content: '..'; }
-      75% { content: '...'; }
+    @keyframes fadeOut {
+      to { opacity: 0; }
     }
   </style>
 </head>
 <body>
-  <div class="logo-container">
-    <div class="logo-icon">
-      <!-- Ikon toko / store sederhana -->
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 24l4-16h40l4 16H8z"/>
-        <rect x="10" y="24" width="44" height="28" rx="2"/>
-        <rect x="24" y="36" width="16" height="16" rx="2" fill="rgba(255,255,255,0.3)"/>
-        <rect x="12" y="30" width="12" height="10" rx="1" fill="rgba(255,255,255,0.3)"/>
-        <rect x="40" y="30" width="12" height="10" rx="1" fill="rgba(255,255,255,0.3)"/>
+  <div class="wrapper">
+    <!-- Ikon SO / Sales Order -->
+    <div class="icon-wrap">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Dokumen -->
+        <rect x="6" y="4" width="20" height="26" rx="3" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="1.5"/>
+        <!-- Garis teks -->
+        <line x1="10" y1="12" x2="22" y2="12" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="17" x2="22" y2="17" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="22" x2="17" y2="22" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- Centang kecil di pojok kanan bawah -->
+        <circle cx="27" cy="27" r="6" fill="#0f1117"/>
+        <circle cx="27" cy="27" r="5.5" stroke="#22c55e" stroke-width="1"/>
+        <polyline points="24.5,27 26.5,29 30,24.5" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
     </div>
-    <div class="app-name">Portal SO Cabang</div>
-    <div class="app-subtitle">Sales Order Management</div>
-  </div>
 
-  <div class="loading-container">
-    <div class="spinner"></div>
-    <div class="loading-text">
-      Memuat aplikasi<span class="dots"></span>
+    <div class="app-name">Portal SO Cabang</div>
+    <div class="app-sub">Sales Order Management</div>
+
+    <div class="bar-track">
+      <div class="bar-fill"></div>
     </div>
-    <div class="progress-bar-container">
-      <div class="progress-bar"></div>
-    </div>
+
+    <div class="status" id="status">Menghubungkan ke server</div>
   </div>
 
   <div class="version" id="version">v1.0.0</div>
 
   <script>
-    // Tampilkan versi dari URL param jika ada
+    // Versi dari URL param
     try {
-      const params = new URLSearchParams(window.location.search);
-      const ver = params.get('v');
-      if (ver) document.getElementById('version').textContent = 'v' + ver;
-    } catch (e) {}
+      const p = new URLSearchParams(window.location.search);
+      const v = p.get('v');
+      if (v) document.getElementById('version').textContent = 'v' + v;
+    } catch (_) {}
+
+    // Rotasi teks status agar terasa hidup
+    const statusEl = document.getElementById('status');
+    const messages = [
+      'Menghubungkan ke server',
+      'Memuat konfigurasi',
+      'Menyiapkan sesi',
+      'Sebentar lagi siap'
+    ];
+    let idx = 0;
+    const interval = setInterval(() => {
+      idx = (idx + 1) % messages.length;
+      statusEl.style.opacity = '0';
+      statusEl.style.transition = 'opacity 0.25s';
+      setTimeout(() => {
+        statusEl.textContent = messages[idx];
+        statusEl.style.opacity = '1';
+      }, 260);
+    }, 2200);
+
+    // Ekspos fungsi fade-out untuk dipanggil dari main process via IPC
+    // (dipanggil oleh renderer sebelum window disembunyikan)
+    window.__fadeOut = function () {
+      clearInterval(interval);
+      document.body.classList.add('fade-out');
+    };
   </script>
 </body>
 </html>
